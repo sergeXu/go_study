@@ -49,10 +49,9 @@ func (this *User) DoMessage(msg string) {
 	//消息指令处理，查询在线人员
 	if msg == "who" {
 		for _, v := range this.server.OnlineMap {
-			onlineMsg := "[" + v.Addr + "]" + v.Name + ": 在线\n"
+			onlineMsg := "[" + v.Addr + "]" + v.Name + ": 在线"
 			this.SendMessage(onlineMsg)
 		}
-
 	} else if len(msg) > 7 && msg[:7] == "rename|" {
 		//修改用户名称，前缀过滤判断
 		//消息格式：rename|张三
@@ -69,6 +68,23 @@ func (this *User) DoMessage(msg string) {
 			this.Name = newName
 			this.SendMessage("您已更新用户名：" + this.Name)
 		}
+	} else if len(msg) > 4 && msg[:3] == "to|" {
+		remoteNmae := strings.Split(msg, "|")[1]
+		if remoteNmae == "" {
+			this.SendMessage("格式不正确，参考 \"to|张三|你好啊 \"")
+			return
+		}
+		remoteUser, ok := this.server.OnlineMap[remoteNmae]
+		if !ok {
+			this.SendMessage("目标用户不存在，请检查 ")
+		}
+		msg := strings.Split(msg, "|")[2]
+		if msg == "" {
+			this.SendMessage("无发送内容，请检查 ")
+		} else {
+			remoteUser.SendMessage(this.Name + " 对您说： " + msg)
+		}
+
 	} else {
 		//数据广播处理
 		this.server.BroadCast(this, msg)
@@ -77,7 +93,7 @@ func (this *User) DoMessage(msg string) {
 
 // 指定向user发送消息
 func (this *User) SendMessage(msg string) {
-	this.conn.Write([]byte(msg))
+	this.conn.Write([]byte(msg + "\n"))
 }
 
 // 监听消息进行发送
