@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -58,6 +59,8 @@ func (this *Server) Handler(conn net.Conn) {
 	fmt.Println("Handler success")
 	user := NewUser(conn, this)
 	user.Online()
+	//活跃度保持chan
+	isLive := make(chan bool)
 	//处理用户的信息输入
 	go func() {
 		buf := make([]byte, 4096)
@@ -75,10 +78,26 @@ func (this *Server) Handler(conn net.Conn) {
 			msg := string(buf[:n-1])
 			//处理用户输入
 			user.DoMessage(msg)
+
+			//激活活跃度
+			isLive <- true
 		}
 	}()
 	//当前handler阻塞，处理用户输入处理
-	select {}
+	for {
+		select {
+		case <-isLive:
+			//处理活跃度队列，激活select，更新下面定时器
+		case <-time.After(time.Second * 10):
+			user.SendMessage("你被踢了")
+			user.Offline()
+			//channel 资源关闭
+			close(user.C)
+			//关闭连接
+			conn.Close()
+			return
+		}
+	}
 }
 
 // 广播消息的方法
