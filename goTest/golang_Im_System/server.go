@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"sync"
@@ -55,13 +56,27 @@ func (this *Server) Start() {
 // 处理连接的业务部分
 func (this *Server) Handler(conn net.Conn) {
 	fmt.Println("Handler success")
-	//用户上线
-	this.mapLock.Lock()
-	user := NewUser(conn)
-	this.OnlineMap[user.Name] = user
-	this.mapLock.Unlock()
-	//广播用户上线消息
-	this.BroadCast(user, "已上线")
+	user := NewUser(conn, this)
+	user.Online()
+	//处理用户的信息输入
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := conn.Read(buf)
+			if err != nil && err != io.EOF {
+				fmt.Println("conn.Read err:", err)
+				return
+			}
+			if n <= 0 {
+				user.Offline()
+				return
+			}
+
+			msg := string(buf[:n-1])
+			//处理用户输入
+			user.DoMessage(msg)
+		}
+	}()
 	//当前handler阻塞，处理用户输入处理
 	select {}
 }
