@@ -90,6 +90,7 @@ func (this *Server) Handler(conn net.Conn) {
 			//处理活跃度队列，激活select，更新下面定时器
 		case <-time.After(time.Minute * 5):
 			user.SendMessage("你被踢了")
+			user.Offline()
 			//channel 资源关闭
 			close(user.C)
 			//关闭连接
